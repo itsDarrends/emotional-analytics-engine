@@ -1,67 +1,68 @@
 package com.emotionalanalytics.service;
 
 import com.emotionalanalytics.entities.Commit;
-import edu.stanford.nlp.ling.CoreAnnotations;
-import edu.stanford.nlp.neural.rnn.RNNCoreAnnotations;
-import edu.stanford.nlp.pipeline.Annotation;
-import edu.stanford.nlp.pipeline.StanfordCoreNLP;
-import edu.stanford.nlp.sentiment.SentimentCoreAnnotations;
-import edu.stanford.nlp.trees.Tree;
-import edu.stanford.nlp.util.CoreMap;
-import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Properties;
+import java.util.regex.Pattern;
 
 @Service
 public class NLPAnalysisService {
 
-    private StanfordCoreNLP pipeline;
+    // Words that signal problems, frustration, or setbacks in commit history
+    private static final List<String> NEGATIVE_WORDS = List.of(
+            "fix", "bug", "error", "crash", "broken", "break", "broke",
+            "fail", "failure", "failed", "wrong", "issue", "problem",
+            "revert", "rollback", "hack", "workaround", "hotfix",
+            "regression", "leak", "deadlock", "overflow", "exception",
+            "timeout", "flaky", "oops", "typo", "incorrect", "missing",
+            "corrupt", "invalid", "slow", "ugly", "nasty", "mess",
+            "critical", "urgent", "disable", "todo", "fixme", "hardcoded",
+            "conflict", "undo", "stuck", "weird", "pain", "nightmare",
+            "emergency", "broken", "panic", "bad", "terrible", "awful"
+    );
 
-    @PostConstruct
-    public void init() {
-        Properties props = new Properties();
-        props.setProperty("annotators", "tokenize, ssplit, parse, sentiment");
-        pipeline = new StanfordCoreNLP(props);
-    }
+    // Words that signal progress, improvement, or achievement
+    private static final List<String> POSITIVE_WORDS = List.of(
+            "add", "implement", "feature", "improve", "enhance", "optimize",
+            "clean", "refactor", "release", "support", "upgrade", "create",
+            "build", "introduce", "enable", "simplify", "complete", "finish",
+            "done", "initial", "setup", "redesign", "restructure", "streamline",
+            "migrate", "integrate", "efficient", "new", "ship", "deploy",
+            "launch", "resolve", "close", "update", "boost", "speed",
+            "better", "great", "smooth", "polish", "nice", "improve",
+            "performance", "beautiful", "elegant", "awesome", "solid"
+    );
 
     public void analyzeCommit(Commit commit) {
-        // Only analyze the subject line — body is noise for sentiment
-        String subject = commit.getMessage().split("\n")[0].trim();
+        String subject = commit.getMessage().split("\n")[0].trim().toLowerCase();
+
         if (subject.isEmpty()) {
             commit.setSentimentScore(0.0);
             commit.setSentimentLabel("NEUTRAL");
             return;
         }
 
-        Annotation annotation = new Annotation(subject);
-        pipeline.annotate(annotation);
+        long negativeCount = NEGATIVE_WORDS.stream()
+                .filter(word -> containsWord(subject, word))
+                .count();
+        long positiveCount = POSITIVE_WORDS.stream()
+                .filter(word -> containsWord(subject, word))
+                .count();
 
-        List<CoreMap> sentences = annotation.get(CoreAnnotations.SentencesAnnotation.class);
-        if (sentences == null || sentences.isEmpty()) {
-            commit.setSentimentScore(0.0);
-            commit.setSentimentLabel("NEUTRAL");
-            return;
-        }
-
-        // Average raw score across sentences (0=Very Negative … 4=Very Positive)
-        double total = 0;
-        for (CoreMap sentence : sentences) {
-            Tree tree = sentence.get(SentimentCoreAnnotations.SentimentAnnotatedTree.class);
-            total += RNNCoreAnnotations.getPredictedClass(tree);
-        }
-        double avg = total / sentences.size();
-
-        if (avg < 1.5) {
+        if (negativeCount > positiveCount) {
             commit.setSentimentScore(-1.0);
             commit.setSentimentLabel("NEGATIVE");
-        } else if (avg > 2.5) {
+        } else if (positiveCount > negativeCount) {
             commit.setSentimentScore(1.0);
             commit.setSentimentLabel("POSITIVE");
         } else {
             commit.setSentimentScore(0.0);
             commit.setSentimentLabel("NEUTRAL");
         }
+    }
+
+    private boolean containsWord(String text, String word) {
+        return Pattern.compile("\\b" + Pattern.quote(word) + "\\b").matcher(text).find();
     }
 }
