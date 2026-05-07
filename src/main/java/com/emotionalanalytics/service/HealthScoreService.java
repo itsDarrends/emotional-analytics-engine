@@ -40,7 +40,8 @@ public class HealthScoreService {
                 .count();
 
         int totalCommits = commits.size();
-        double score = ((positiveCount - negativeCount) / (double) totalCommits) * 50 + 50;
+        double score = totalCommits == 0 ? 50.0
+                : ((positiveCount - negativeCount) / (double) totalCommits) * 50 + 50;
 
         HealthScore healthScore = new HealthScore();
         healthScore.setRepo(repo);

@@ -24,12 +24,16 @@ public class RepoService {
                 repo.getCreatedAt()
         );
     }
-    public RepoDTO addRepo(Repo repo) {
+
+    public RepoDTO addRepo(Repo repo, String userId) {
+        repo.setUserId(userId);
         Repo saved = repoRepository.save(repo);
         return toDTO(saved);
     }
 
-    public List<RepoDTO> getAllRepos(){
-        return repoRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
+    public List<RepoDTO> getAllRepos(String userId) {
+        return repoRepository.findByUserId(userId).stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
     }
 }

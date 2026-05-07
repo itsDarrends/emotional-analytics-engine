@@ -26,7 +26,11 @@ public class Repo {
     @Column(nullable = false)
     private String platform;
 
+    @Column
+    private String userId;
+
     private LocalDateTime createdAt;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
