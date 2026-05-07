@@ -1,60 +1,52 @@
 package com.emotionalanalytics.service;
 
 import com.emotionalanalytics.entities.Commit;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.junit.jupiter.api.TestInstance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@ExtendWith(MockitoExtension.class)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class NLPAnalysisServiceTest {
 
-    @InjectMocks
-    private NLPAnalysisService nlpAnalysisService;
+    private final NLPAnalysisService nlpAnalysisService = new NLPAnalysisService();
 
-    //test 1 (negative)
+    @BeforeAll
+    void setUp() {
+        // Loading CoreNLP models is slow — do it once for the whole test class
+        nlpAnalysisService.init();
+    }
+
     @Test
     void shouldLabelNegativeCommit() {
-        //Given
         Commit commit = new Commit();
         commit.setMessage("fix this garbage bug");
 
-        //when
         nlpAnalysisService.analyzeCommit(commit);
 
-        //then
         assertEquals("NEGATIVE", commit.getSentimentLabel());
         assertEquals(-1.0, commit.getSentimentScore());
     }
 
-    //test 2 (positive)
     @Test
-    void shouldLabelPositiveCommit(){
-        //Given
+    void shouldLabelPositiveCommit() {
         Commit commit = new Commit();
         commit.setMessage("add new feature to improve performance");
 
-        //when
         nlpAnalysisService.analyzeCommit(commit);
 
-        //then
         assertEquals("POSITIVE", commit.getSentimentLabel());
         assertEquals(1.0, commit.getSentimentScore());
     }
 
-    //test 3 (nutral)
     @Test
-    void shouldLabelNeutralCommit(){
-        //Given
+    void shouldLabelNeutralCommit() {
         Commit commit = new Commit();
         commit.setMessage("merge branch into main");
 
-        //when
         nlpAnalysisService.analyzeCommit(commit);
 
-        //then
         assertEquals("NEUTRAL", commit.getSentimentLabel());
         assertEquals(0.0, commit.getSentimentScore());
     }
